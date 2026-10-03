@@ -112,3 +112,27 @@ class GitHubClient:
             response, resource_description=f"Diff for PR #{pull_number} in '{owner}/{repo}'"
         )
         return res.text
+
+    def list_closed_pull_requests(
+        self, owner: str, repo: str, page: int = 1, per_page: int = 100
+    ) -> List[Dict[str, Any]]:
+        """List closed pull requests for a repository."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/pulls"
+        params = {"state": "closed", "sort": "created", "direction": "desc", "page": page, "per_page": per_page}
+        response = self.session.get(url, params=params)
+        res = self._handle_response(
+            response, resource_description=f"Closed PRs page {page} for '{owner}/{repo}'"
+        )
+        return res.json()
+
+    def get_pull_request_reviews(
+        self, owner: str, repo: str, pull_number: int
+    ) -> List[Dict[str, Any]]:
+        """Fetch reviews submitted for a pull request."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/pulls/{pull_number}/reviews"
+        response = self.session.get(url)
+        res = self._handle_response(
+            response, resource_description=f"Reviews for PR #{pull_number} in '{owner}/{repo}'"
+        )
+        return res.json()
+
