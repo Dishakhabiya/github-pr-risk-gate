@@ -6,6 +6,8 @@
 
 import { MOCK_PRS, DEFAULT_PR_KEY } from "../mock/mockData";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getKey = (repo, number) => {
@@ -21,34 +23,75 @@ const getKey = (repo, number) => {
 };
 
 /**
- * Step 1: Ingest and Analyze PR metadata
+ * Step 1: Ingest and Analyze PR metadata via FastAPI Person 1 endpoint
  */
 export async function analyzePR(repository, prNumber) {
-  await delay(600);
-
-  if (!repository || !prNumber) {
-    throw new Error("Please enter both Repository (e.g., kubernetes/kubernetes) and PR Number.");
+  if (!repository || !repository.trim()) {
+    throw new Error("Please enter a Repository (e.g., kubernetes/kubernetes).");
+  }
+  if (prNumber === undefined || prNumber === null || String(prNumber).trim() === "") {
+    throw new Error("Please enter a PR Number.");
   }
 
-  const key = getKey(repository, prNumber);
-  const pr = MOCK_PRS[key];
-
-  if (!pr) {
-    throw new Error(`Pull Request #${prNumber} in '${repository}' was not found.`);
+  const numericPrNumber = Number(prNumber);
+  if (isNaN(numericPrNumber) || numericPrNumber <= 0) {
+    throw new Error("Please enter a valid positive PR Number.");
   }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/pr/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        repository: repository.trim(),
+        pr_number: numericPrNumber,
+      }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Unable to connect to the backend server at ${API_BASE_URL}. Please verify that FastAPI is running.`
+    );
+  }
+
+  if (!response.ok) {
+    let errorDetail = "An unexpected error occurred while analyzing the Pull Request.";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
+      }
+    } catch (_) {
+      // Ignore JSON parse failure on non-JSON response
+    }
+    throw new Error(errorDetail);
+  }
+
+  const data = await response.json();
 
   return {
-    pr_id: pr.pr_id,
-    repository: pr.repository,
-    title: pr.title,
-    body: pr.body,
-    state: pr.state,
-    author: pr.author,
-    base_branch: pr.base_branch,
-    head_branch: pr.head_branch,
-    created_at: pr.created_at,
-    features: pr.features,
-    changed_files_list: pr.changed_files_list
+    pr_id: data.pr_number,
+    repository: data.repository,
+    title: data.title,
+    body: data.description,
+    description: data.description,
+    state: "open",
+    author: "GitHub Contributor",
+    base_branch: "main",
+    head_branch: "patch",
+    created_at: new Date().toISOString(),
+    files_changed: data.files_changed,
+    lines_added: data.lines_added,
+    lines_deleted: data.lines_deleted,
+    commits: data.commits,
+    features: data.features,
+    risk_score: data.risk_score,
+    risk_level: data.risk_level,
+    model_name: data.model_name,
+    threshold: 0.5,
+    changed_files_list: []
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Navbar from "./components/Navbar";
 import PRAnalysis from "./pages/PRAnalysis";
 import RiskAnalysis from "./pages/RiskAnalysis";
@@ -26,26 +26,40 @@ export default function App() {
   const [answers, setAnswers] = useState({});
   const [finalResult, setFinalResult] = useState(null);
 
-  // Auto load default PR on initial render for seamless experience
-  useEffect(() => {
-    handleAnalyzePR("kubernetes/kubernetes", "142645");
-  }, []);
-
   const handleAnalyzePR = async (repo, prNumber) => {
     setLoading(true);
     setError(null);
+    setPrData(null);
+    setRiskData(null);
+    setContextData(null);
+    setQuestionData(null);
+    setAnswers({});
+    setFinalResult(null);
+
     try {
       const prRes = await analyzePR(repo, prNumber);
       setPrData(prRes);
 
-      const riskRes = await getRiskPrediction(repo, prNumber);
-      setRiskData(riskRes);
+      setRiskData({
+        pr_id: prRes.pr_id,
+        repository: prRes.repository,
+        title: prRes.title,
+        features: prRes.features,
+        risk_score: prRes.risk_score,
+        risk_level: prRes.risk_level,
+        threshold: prRes.threshold || 0.5,
+        model_name: prRes.model_name,
+      });
 
-      const contextRes = await getRepositoryContext(repo, prNumber);
-      setContextData(contextRes);
+      try {
+        const contextRes = await getRepositoryContext(repo, prNumber);
+        setContextData(contextRes);
 
-      const qRes = await getQuestions(repo, prNumber);
-      setQuestionData(qRes);
+        const qRes = await getQuestions(repo, prNumber);
+        setQuestionData(qRes);
+      } catch (_) {
+        // Fallback for mock context/questions if needed
+      }
 
       // Reset answers and final result for new PR
       setAnswers({});
