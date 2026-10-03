@@ -136,3 +136,28 @@ class GitHubClient:
         )
         return res.json()
 
+    def get_repository_tree(
+        self, owner: str, repo: str, tree_sha: str, recursive: bool = True
+    ) -> Dict[str, Any]:
+        """Fetch repository tree."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/git/trees/{tree_sha}"
+        params = {"recursive": "1"} if recursive else {}
+        response = self.session.get(url, params=params)
+        res = self._handle_response(
+            response, resource_description=f"Tree '{tree_sha}' for '{owner}/{repo}'"
+        )
+        return res.json()
+
+    def get_file_content(
+        self, owner: str, repo: str, path: str, ref: str
+    ) -> Dict[str, Any]:
+        """Fetch file content from repository."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/contents/{path}"
+        params = {"ref": ref}
+        response = self.session.get(url, params=params)
+        res = self._handle_response(
+            response, resource_description=f"File '{path}' for '{owner}/{repo}' at '{ref}'"
+        )
+        return res.json()
+
+

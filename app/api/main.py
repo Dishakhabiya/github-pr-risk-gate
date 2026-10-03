@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
+from app.api.rag_routes import router as rag_router
 
 app = FastAPI(
     title="GitHub PR Risk Gate API",
@@ -26,3 +27,4 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(rag_router, prefix="/api")
