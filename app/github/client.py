@@ -160,4 +160,24 @@ class GitHubClient:
         )
         return res.json()
 
+    def get_commit(self, owner: str, repo: str, sha: str) -> Dict[str, Any]:
+        """Fetch commit details including files and stats."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/commits/{sha}"
+        response = self.session.get(url)
+        res = self._handle_response(
+            response, resource_description=f"Commit '{sha}' in '{owner}/{repo}'"
+        )
+        return res.json()
+
+    def get_commit_diff(self, owner: str, repo: str, sha: str) -> str:
+        """Fetch raw diff string for a commit."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/commits/{sha}"
+        headers = {"Accept": "application/vnd.github.v3.diff"}
+        response = self.session.get(url, headers=headers)
+        res = self._handle_response(
+            response, resource_description=f"Diff for commit '{sha}' in '{owner}/{repo}'"
+        )
+        return res.text
+
+
 

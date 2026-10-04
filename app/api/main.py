@@ -1,8 +1,15 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes import router
 from app.api.rag_routes import router as rag_router
+from app.api.auth_routes import router as auth_router
+from app.api.github_routes import router as github_router
+
+load_dotenv()
 
 app = FastAPI(
     title="GitHub PR Risk Gate API",
@@ -26,5 +33,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+session_secret = os.getenv("SESSION_SECRET_KEY", "github-pr-risk-gate-dev-secret-key")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=session_secret,
+    session_cookie="session",
+    max_age=14 * 24 * 3600,
+    same_site="lax",
+    https_only=False,
+)
+
 app.include_router(router)
 app.include_router(rag_router, prefix="/api")
+app.include_router(auth_router)
+app.include_router(github_router)
+
+

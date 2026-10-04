@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import PRAnalysis from "./pages/PRAnalysis";
 import RiskAnalysis from "./pages/RiskAnalysis";
@@ -7,10 +7,14 @@ import FinalResult from "./pages/FinalResult";
 
 import {
   analyzePR,
+  analyzeCommit,
+  analyzeRepository,
   getRiskPrediction,
   getRepositoryContext,
   getQuestions,
   submitAnswers,
+  getAuthUser,
+  logoutUser,
 } from "./services/api";
 
 export default function App() {
@@ -20,16 +24,43 @@ export default function App() {
   const [error, setError] = useState(null);
 
   const [prData, setPrData] = useState(null);
+  const [repoData, setRepoData] = useState(null);
   const [riskData, setRiskData] = useState(null);
   const [contextData, setContextData] = useState(null);
   const [questionData, setQuestionData] = useState(null);
   const [answers, setAnswers] = useState({});
   const [finalResult, setFinalResult] = useState(null);
 
+  const [authUser, setAuthUser] = useState({ authenticated: false });
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const user = await getAuthUser();
+      setAuthUser(user);
+    } catch (_) {
+      setAuthUser({ authenticated: false });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setAuthUser({ authenticated: false });
+      handleReset();
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
+
   const handleAnalyzePR = async (repo, prNumber) => {
     setLoading(true);
     setError(null);
     setPrData(null);
+    setRepoData(null);
     setRiskData(null);
     setContextData(null);
     setQuestionData(null);
@@ -61,11 +92,69 @@ export default function App() {
         // Fallback for mock context/questions if needed
       }
 
-      // Reset answers and final result for new PR
       setAnswers({});
       setFinalResult(null);
     } catch (err) {
       setError(err.message || "Failed to analyze Pull Request.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnalyzeCommit = async (repo, commitSha) => {
+    setLoading(true);
+    setError(null);
+    setPrData(null);
+    setRepoData(null);
+    setRiskData(null);
+    setContextData(null);
+    setQuestionData(null);
+    setAnswers({});
+    setFinalResult(null);
+
+    try {
+      const commitRes = await analyzeCommit(repo, commitSha);
+      setPrData(commitRes);
+
+      setRiskData({
+        pr_id: commitRes.pr_id,
+        repository: commitRes.repository,
+        title: commitRes.title,
+        features: commitRes.features,
+        risk_score: commitRes.risk_score,
+        risk_level: commitRes.risk_level,
+        threshold: commitRes.threshold || 0.5,
+        model_name: commitRes.model_name,
+        analysis_type: "Commit Risk Analysis",
+      });
+
+      setAnswers({});
+      setFinalResult(null);
+    } catch (err) {
+      setError(err.message || "Failed to analyze Commit.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnalyzeRepo = async (fullRepoName) => {
+    if (!fullRepoName || !fullRepoName.includes("/")) return;
+    const [owner, repoName] = fullRepoName.split("/");
+    setLoading(true);
+    setError(null);
+    setPrData(null);
+    setRepoData(null);
+    setRiskData(null);
+    setContextData(null);
+    setQuestionData(null);
+    setAnswers({});
+    setFinalResult(null);
+
+    try {
+      const repoRes = await analyzeRepository(owner, repoName);
+      setRepoData(repoRes);
+    } catch (err) {
+      setError(err.message || "Failed to analyze repository codebase.");
     } finally {
       setLoading(false);
     }
@@ -104,6 +193,7 @@ export default function App() {
 
   const handleReset = () => {
     setPrData(null);
+    setRepoData(null);
     setRiskData(null);
     setContextData(null);
     setQuestionData(null);
@@ -118,16 +208,22 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentPR={prData}
+        authUser={authUser}
+        onLogout={handleLogout}
       />
 
       <main className="main-content">
         {activeTab === "analysis" && (
           <PRAnalysis
             prData={prData}
+            repoData={repoData}
             loading={loading}
             error={error}
             onAnalyze={handleAnalyzePR}
+            onAnalyzeCommit={handleAnalyzeCommit}
+            onAnalyzeRepo={handleAnalyzeRepo}
             onNext={() => setActiveTab("risk")}
+            authUser={authUser}
           />
         )}
 

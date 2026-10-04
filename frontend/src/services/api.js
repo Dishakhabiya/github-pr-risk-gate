@@ -66,8 +66,12 @@ export async function analyzePR(repository, prNumber) {
     } catch (_) {
       // Ignore JSON parse failure on non-JSON response
     }
+    if (response.status === 404) {
+      errorDetail = `Pull request #${numericPrNumber} not found or no longer available in repository '${repository}'.`;
+    }
     throw new Error(errorDetail);
   }
+
 
   const data = await response.json();
 
@@ -188,3 +192,202 @@ export async function getFinalResult(repository, prNumber) {
   const pr = MOCK_PRS[key];
   return pr.final_result;
 }
+
+/**
+ * Step 5: GitHub OAuth Authentication
+ */
+export async function getAuthUser() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+      credentials: "include",
+    });
+    if (!response.ok) {
+      return { authenticated: false };
+    }
+    return await response.json();
+  } catch (err) {
+    return { authenticated: false };
+  }
+}
+
+export async function logoutUser() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+      },
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error("Logout failed");
+    }
+    return await response.json();
+  } catch (err) {
+    throw err;
+  }
+}
+
+/**
+ * Step 6: Authenticated User Repositories & Pull Requests
+ */
+export async function getUserRepos() {
+  const response = await fetch(`${API_BASE_URL}/api/github/repos`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+    },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch user repositories.");
+  }
+  return await response.json();
+}
+
+export async function getRepoPRs(owner, repo) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/github/repos/${owner}/${repo}/pulls`,
+    {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+      credentials: "include",
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch pull requests for ${owner}/${repo}.`);
+  }
+  return await response.json();
+}
+
+export async function getRepoCommits(owner, repo) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/github/repos/${owner}/${repo}/commits`,
+    {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+      credentials: "include",
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch commits for ${owner}/${repo}.`);
+  }
+  return await response.json();
+}
+
+export async function analyzeCommit(repository, commitSha) {
+  if (!repository || !repository.trim()) {
+    throw new Error("Please enter a Repository (e.g., owner/repo).");
+  }
+  if (!commitSha || !commitSha.trim()) {
+    throw new Error("Please select or enter a commit SHA.");
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/commit/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        repository: repository.trim(),
+        commit_sha: commitSha.trim(),
+      }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Unable to connect to the backend server at ${API_BASE_URL}. Please verify that FastAPI is running.`
+    );
+  }
+
+  if (!response.ok) {
+    let errorDetail = "An unexpected error occurred while analyzing the commit.";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
+      }
+    } catch (_) {}
+    if (response.status === 404) {
+      errorDetail = `Commit ${commitSha} not found or no longer available in repository '${repository}'.`;
+    }
+    throw new Error(errorDetail);
+  }
+
+  const data = await response.json();
+
+  return {
+    pr_id: data.short_sha,
+    commit_sha: data.commit_sha,
+    short_sha: data.short_sha,
+    repository: data.repository,
+    title: data.commit_message,
+    body: data.commit_message,
+    description: data.commit_message,
+    state: "committed",
+    author: data.author || "GitHub Contributor",
+    base_branch: "main",
+    head_branch: data.short_sha,
+    created_at: new Date().toISOString(),
+    files_changed: data.files_changed,
+    lines_added: data.lines_added,
+    lines_deleted: data.lines_deleted,
+    commits: data.commits,
+    features: data.features,
+    risk_score: data.risk_score,
+    risk_level: data.risk_level,
+    model_name: data.model_name,
+    threshold: 0.5,
+    analysis_type: "Commit Risk Analysis",
+    changed_files_list: []
+  };
+}
+
+/**
+ * Step 7: Repository Analysis Mode (RAG Codebase Indexing for 0-PR or full-repo analysis)
+ */
+export async function analyzeRepository(owner, repo, branch = null) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/rag/repository/index`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ owner, repo, branch }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Unable to connect to backend server at ${API_BASE_URL}. Please verify FastAPI is running.`
+    );
+  }
+
+  if (!response.ok) {
+    let errorDetail = "Failed to analyze repository codebase.";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
+      }
+    } catch (_) {}
+    throw new Error(errorDetail);
+  }
+
+  return await response.json();
+}
+
+
+
+

@@ -897,3 +897,135 @@ button:disabled {
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
+/* OAuth Auth Section */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 0.35rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.85rem;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-avatar-placeholder {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--accent-purple);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+.user-login {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-logout:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.btn-github-login {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #24292e;
+  color: #ffffff;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid #444c56;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-github-login:hover {
+  background-color: #2c3137;
+  border-color: #636e7b;
+}
+
+/* Repo & PR Selection Dropdown Styles */
+.select-loading {
+  padding: 0.65rem 0.85rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.input-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.btn-mode-toggle {
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-mode-toggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+
+.no-prs-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 0.5rem;
+  color: var(--accent-amber);
+  font-size: 0.85rem;
+}
+
+
+

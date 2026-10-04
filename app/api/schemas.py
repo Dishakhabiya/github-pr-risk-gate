@@ -54,3 +54,56 @@ class AnalyzePRResponse(BaseModel):
     risk_score: float
     risk_level: str
     model_name: Optional[str] = "Logistic Regression"
+
+
+class AnalyzeCommitRequest(BaseModel):
+    """Request schema for /api/commit/analyze endpoint."""
+
+    repository: str = Field(
+        ...,
+        json_schema_extra={"example": "kubernetes/kubernetes"},
+        description="GitHub repository in 'owner/repo' format.",
+    )
+    commit_sha: str = Field(
+        ...,
+        json_schema_extra={"example": "abc123def456"},
+        description="Full or short Git commit SHA.",
+    )
+
+    @field_validator("repository")
+    def validate_repository_format(cls, v: str) -> str:
+        v_clean = v.strip()
+        if not v_clean or "/" not in v_clean:
+            raise ValueError("Repository must be provided in 'owner/repo' format.")
+        parts = v_clean.split("/")
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            raise ValueError("Repository must contain valid owner and repository names.")
+        return v_clean
+
+    @field_validator("commit_sha")
+    def validate_commit_sha(cls, v: str) -> str:
+        v_clean = v.strip()
+        if not v_clean:
+            raise ValueError("Commit SHA cannot be empty.")
+        return v_clean
+
+
+class AnalyzeCommitResponse(BaseModel):
+    """Response schema for /api/commit/analyze endpoint."""
+
+    repository: str
+    commit_sha: str
+    short_sha: str
+    commit_message: str
+    author: str
+    files_changed: int
+    lines_added: int
+    lines_deleted: int
+    commits: int = 1
+    features: Dict[str, Any]
+    risk_score: float
+    risk_level: str
+    model_name: Optional[str] = "Logistic Regression"
+    analysis_type: str = "Commit Risk Analysis"
+
+

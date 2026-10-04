@@ -11,3 +11,4 @@ urllib3
 uvicorn
 pytest
 chromadb
+itsdangerous
