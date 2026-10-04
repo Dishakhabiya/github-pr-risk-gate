@@ -4,6 +4,7 @@ fastapi
 httpx
 idna
 joblib
+mlflow
 python-dotenv
 requests
 scikit-learn

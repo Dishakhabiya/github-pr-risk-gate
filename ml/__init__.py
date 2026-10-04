@@ -3,6 +3,7 @@ from ml.preprocessing import load_dataset, prepare_feature_matrix, split_dataset
 from ml.model import RiskModelPipeline
 from ml.evaluate import evaluate_model, save_evaluation_results, print_evaluation_report
 from ml.predict import PRRiskPredictor, predict_pr_risk
+from ml.tracking import mlflow_run, log_evaluation_metrics, log_and_register_model
 
 __all__ = [
     "load_dataset",
@@ -14,4 +15,7 @@ __all__ = [
     "print_evaluation_report",
     "PRRiskPredictor",
     "predict_pr_risk",
+    "mlflow_run",
+    "log_evaluation_metrics",
+    "log_and_register_model",
 ]

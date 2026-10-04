@@ -20,6 +20,18 @@ from ml.preprocessing import (
     prepare_feature_matrix,
     split_dataset,
 )
+from ml.tracking import (
+    mlflow_run,
+    log_environment_params,
+    log_dataset_params,
+    log_model_params,
+    log_evaluation_metrics,
+    log_and_register_model,
+    log_evaluation_artifact,
+    log_confusion_matrix_artifact,
+    log_feature_metadata_artifact,
+    log_classification_report_artifact,
+)
 
 
 def generate_synthetic_demo_dataset(num_records: int = 50) -> List[Dict[str, Any]]:
@@ -132,9 +144,11 @@ def main():
     if os.path.exists(args.csv_path):
         print(f"Loading dataset from: {args.csv_path}")
         records = load_dataset(args.csv_path)
+        dataset_source = args.csv_path
     else:
         print(f"Dataset CSV not found at {args.csv_path}. Generating synthetic demo dataset for training...")
         records = generate_synthetic_demo_dataset(num_records=100)
+        dataset_source = "synthetic_demo"
 
     total_records = len(records)
     print(f"Total dataset records: {total_records}")
@@ -173,22 +187,66 @@ def main():
 
     print(f"\nSelected Model Architecture: {selected_model_name} (based on training CV F1-Score)")
 
-    # Train selected model pipeline on FULL Training Set
-    final_pipeline = RiskModelPipeline(model_name=selected_model_name)
-    final_pipeline.train(
-        X_train, y_train, feature_names, model_type=selected_model_type, random_state=args.random_state
-    )
+    # ── US-18 MLflow Experiment Tracking ──────────────────────────────────────
+    with mlflow_run(run_name=f"train-{selected_model_type}") as run:
 
-    # Save trained model pipeline artifact
-    final_pipeline.save(args.model_path)
-    print(f"Saved trained model artifact to: {args.model_path}")
+        # 1. Environment params
+        log_environment_params()
 
-    # Evaluate ONCE on untouched held-out test set
-    test_metrics = evaluate_model(final_pipeline, X_test, y_test)
+        # 2. Dataset & split params
+        log_dataset_params(
+            total_records=total_records,
+            train_samples=len(train_recs),
+            test_samples=len(test_recs),
+            num_features=len(feature_names),
+            feature_names=list(feature_names),
+            test_size=args.test_size,
+            random_state=args.random_state,
+            dataset_source=dataset_source,
+        )
 
-    # Save evaluation results JSON artifact
-    save_evaluation_results(test_metrics, args.eval_path)
-    print(f"Saved evaluation metrics to: {args.eval_path}")
+        # 3. Model hyperparameters & selection params
+        log_model_params(
+            model_type=selected_model_type,
+            model_name=selected_model_name,
+            random_state=args.random_state,
+            cv_score_lr=cv_score_lr,
+            cv_score_rf=cv_score_rf,
+        )
+
+        # ── Train selected model pipeline on FULL Training Set ──────────────
+        final_pipeline = RiskModelPipeline(model_name=selected_model_name)
+        final_pipeline.train(
+            X_train, y_train, feature_names, model_type=selected_model_type, random_state=args.random_state
+        )
+
+        # Save trained model pipeline artifact (joblib) — same path as before
+        final_pipeline.save(args.model_path)
+        print(f"Saved trained model artifact to: {args.model_path}")
+
+        # ── Evaluate ONCE on untouched held-out test set ────────────────────
+        test_metrics = evaluate_model(final_pipeline, X_test, y_test)
+
+        # Save evaluation results JSON artifact
+        save_evaluation_results(test_metrics, args.eval_path)
+        print(f"Saved evaluation metrics to: {args.eval_path}")
+
+        # 4. Log evaluation metrics to MLflow
+        log_evaluation_metrics(test_metrics)
+
+        # 5. Log and register artifacts to MLflow Model Registry
+        log_and_register_model(final_pipeline, args.model_path)
+        log_evaluation_artifact(args.eval_path)
+        log_confusion_matrix_artifact(test_metrics.get("confusion_matrix", []))
+        log_feature_metadata_artifact(list(feature_names))
+        log_classification_report_artifact(
+            test_metrics.get("classification_report_str", "")
+        )
+
+        if run is not None:
+            print(f"\n[MLflow] Run ID: {run.info.run_id}")
+            print(f"[MLflow] Experiment: {run.info.experiment_id}")
+            print(f"[MLflow] Tracking URI: {run.info.artifact_uri}")
 
     # Print final concise evaluation report for held-out test set
     print_evaluation_report(

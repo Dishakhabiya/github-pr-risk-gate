@@ -6,6 +6,7 @@ from app.rag.retrieval import PRInfo
 logger = logging.getLogger(__name__)
 
 class PRQuestion(BaseModel):
+    question_id: str
     question: str
     category: str
     related_file: Optional[str] = None
@@ -28,6 +29,7 @@ class QuestionGenerator:
                 if len(questions) >= num_questions:
                     break
                 questions.append(PRQuestion(
+                    question_id=f"q{len(questions) + 1}",
                     question=f"What are the main edge cases considered for the changes introduced in `{file_path}`?",
                     category="edge cases",
                     related_file=file_path
@@ -46,6 +48,7 @@ class QuestionGenerator:
                 snippet = content[:60].replace('\n', ' ').strip()
                 if snippet:
                     questions.append(PRQuestion(
+                        question_id=f"q{len(questions) + 1}",
                         question=f"How do the PR changes impact the existing logic in `{file_path}`, specifically around: '{snippet}...'?",
                         category="impact on existing code",
                         related_file=file_path,
@@ -55,6 +58,7 @@ class QuestionGenerator:
         # 3. Security/Performance based on PR Title / Diff
         if len(questions) < num_questions and pr_info.title:
             questions.append(PRQuestion(
+                question_id=f"q{len(questions) + 1}",
                 question=f"Does the implementation for '{pr_info.title}' handle invalid inputs securely and perform optimally?",
                 category="security/performance"
             ))
@@ -64,6 +68,7 @@ class QuestionGenerator:
         cat_idx = 0
         while len(questions) < num_questions:
             questions.append(PRQuestion(
+                question_id=f"q{len(questions) + 1}",
                 question=f"Are there sufficient unit tests and documentation covering these changes?",
                 category=categories[cat_idx % len(categories)]
             ))
