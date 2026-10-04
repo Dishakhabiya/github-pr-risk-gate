@@ -7,6 +7,9 @@ from ml.model import RiskModelPipeline
 from ml.preprocessing import prepare_feature_matrix, validate_no_data_leakage
 
 
+DEFAULT_MODEL_PATH = "models:/pr-risk-model/latest"
+
+
 class PRRiskPredictor:
     """Predictor service for evaluating Pull Request risk using trained model artifact."""
 
@@ -16,7 +19,7 @@ class PRRiskPredictor:
         default_threshold: float = 0.5,
     ):
         # Default to MLflow registry version, fallback will occur in load_model
-        self.model_path = model_path or "models:/pr-risk-model/latest"
+        self.model_path = model_path or DEFAULT_MODEL_PATH
         self.default_threshold = default_threshold
         self._pipeline: Optional[RiskModelPipeline] = None
 
@@ -43,8 +46,14 @@ class PRRiskPredictor:
             except Exception as e:
                 print(f"[MLflow] Warning: Failed to load MLflow model '{self.model_path}' ({e}). Falling back to local joblib artifact.")
                 
-            # If MLflow load fails, fallback to the default artifact path
-            self.model_path = "artifacts/risk_model.joblib"
+            # If MLflow load fails, fallback to default artifact path only if model_path is default
+            if self.model_path == DEFAULT_MODEL_PATH:
+                self.model_path = "artifacts/risk_model.joblib"
+            else:
+                raise FileNotFoundError(
+                    f"Trained risk model artifact not found at '{self.model_path}'. "
+                    "Please run 'python -m ml.train' to train and generate the model artifact."
+                )
 
         if not os.path.exists(self.model_path):
             raise FileNotFoundError(

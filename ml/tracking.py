@@ -221,7 +221,12 @@ def log_and_register_model(pipeline: Any, model_path: str) -> None:
             mlflow.sklearn.log_model(
                 pipeline, 
                 "model", 
-                registered_model_name=REGISTERED_MODEL_NAME
+                registered_model_name=REGISTERED_MODEL_NAME,
+                skops_trusted_types=[
+                    "ml.model.RiskModelPipeline",
+                    "ml.preprocessing.DataPreprocessor",
+                    "numpy.dtype",
+                ],
             )
     except Exception as e:
         print(f"[MLflow] WARNING: Failed to log/register sklearn model: {e}")
