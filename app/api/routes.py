@@ -31,13 +31,20 @@ def health_check() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
+from fastapi import APIRouter, HTTPException, status, Depends, Request
+from app.github.client import GitHubClient
+
+def get_github_client(request: Request) -> GitHubClient:
+    access_token = request.session.get("access_token") if hasattr(request, "session") and request.session else None
+    return GitHubClient(token=access_token)
+
 @router.post(
     "/api/pr/analyze",
     response_model=AnalyzePRResponse,
     status_code=status.HTTP_200_OK,
     tags=["PR Analysis"],
 )
-def analyze_pull_request(payload: AnalyzePRRequest) -> AnalyzePRResponse:
+def analyze_pull_request(payload: AnalyzePRRequest, client: GitHubClient = Depends(get_github_client)) -> AnalyzePRResponse:
     """Analyze a GitHub Pull Request and return risk prediction & statistics.
 
     Flow:
@@ -51,7 +58,7 @@ def analyze_pull_request(payload: AnalyzePRRequest) -> AnalyzePRResponse:
 
     try:
         # 1. US-01: Ingest PR metadata & diff
-        pr_data = fetch_pr_details(owner, repo, pr_number)
+        pr_data = fetch_pr_details(owner, repo, pr_number, client=client)
 
         # 2. US-02: Preprocess raw unified diff
         diff_data = preprocess_diff(pr_data.get("diff", ""))
@@ -121,7 +128,7 @@ def analyze_pull_request(payload: AnalyzePRRequest) -> AnalyzePRResponse:
     status_code=status.HTTP_200_OK,
     tags=["Commit Analysis"],
 )
-def analyze_commit(payload: AnalyzeCommitRequest) -> AnalyzeCommitResponse:
+def analyze_commit(payload: AnalyzeCommitRequest, client: GitHubClient = Depends(get_github_client)) -> AnalyzeCommitResponse:
     """Analyze a GitHub Commit and return risk prediction & statistics.
 
     Flow:
@@ -134,7 +141,7 @@ def analyze_commit(payload: AnalyzeCommitRequest) -> AnalyzeCommitResponse:
     commit_sha = payload.commit_sha.strip()
 
     try:
-        commit_data = fetch_commit_details(owner, repo, commit_sha)
+        commit_data = fetch_commit_details(owner, repo, commit_sha, client=client)
         diff_data = preprocess_diff(commit_data.get("diff", ""))
         features = extract_features(commit_data, diff_data)
         risk_prediction = predict_pr_risk(commit_data, diff_data)

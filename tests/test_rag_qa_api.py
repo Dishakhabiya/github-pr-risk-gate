@@ -29,21 +29,31 @@ def test_question_generation_endpoint_has_ids():
         assert q2["question_id"] == "q2"
 
 def test_answer_submission_valid_id():
-    payload = {
-        "repository": "test/repo",
-        "pr_number": 123,
-        "answers": [
-            {
-                "question_id": "q1",
-                "question": "What is this?",
-                "category": "tests",
-                "answer": "This is a test."
-            }
-        ]
+    pr_mock = {
+        "title": "Test PR", "body": "Body", "pr_id": 123,
+        "repository": "test/repo", "commits": [], "changed_files": [],
+        "diff": "", "html_url": "https://github.com/test/repo/pull/123",
     }
-    response = client.post("/api/rag/questions/answers", json=payload)
-    assert response.status_code == 200
-    assert response.json()["submitted_answers_count"] == 1
+    with patch("app.github.pr_service.GitHubPRService.fetch_pr_details", return_value=pr_mock), \
+         patch("app.github.client.GitHubClient.post_issue_comment", return_value={}):
+        payload = {
+            "repository": "test/repo",
+            "pr_number": 123,
+            "answers": [
+                {
+                    "question_id": "q1",
+                    "question": "What is this?",
+                    "category": "tests",
+                    "answer": "This is a substantial test answer demonstrating understanding.",
+                }
+            ],
+        }
+        response = client.post("/api/rag/questions/answers", json=payload)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert "decision" in data
+        assert "understanding_score" in data
+        assert "risk_score" in data
 
 def test_answer_submission_missing_id():
     payload = {

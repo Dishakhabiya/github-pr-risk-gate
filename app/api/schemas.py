@@ -107,3 +107,13 @@ class AnalyzeCommitResponse(BaseModel):
     analysis_type: str = "Commit Risk Analysis"
 
 
+class EvaluationDecisionResponse(BaseModel):
+    """US-20: Response schema for final developer answer evaluation and PR decision."""
+    pr_id: int
+    repository: str
+    risk_score: float
+    risk_level: str
+    understanding_score: float
+    decision: str
+    reasons: list[str]
+    github_pr_url: str

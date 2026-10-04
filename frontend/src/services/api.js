@@ -208,47 +208,18 @@ export async function submitAnswers(repository, prNumber, answers, answersPayloa
   }
 
   if (!response.ok) {
-    throw new Error("Failed to submit PR answers.");
+    let errorDetail = "Failed to submit PR answers.";
+    try {
+      const errData = await response.json();
+      if (errData && errData.detail) {
+        errorDetail = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
+      }
+    } catch (_) { }
+    throw new Error(errorDetail);
   }
 
-  // To preserve frontend behavior (which expects final result from submitAnswers), 
-  // we combine the real submission with a mock final result.
-  const key = getKey(repository, prNumber);
-  const pr = MOCK_PRS[key] || MOCK_PRS[DEFAULT_PR_KEY];
-
-  const filledCount = Object.values(answers || {}).filter((a) => a && a.trim().length > 10).length;
-  const totalQuestions = Object.keys(answers).length || 3;
-
-  let score = pr.final_result.understanding_score;
-  let decision = pr.final_result.decision;
-  let reasons = [...pr.final_result.reasons];
-
-  if (filledCount === 0) {
-    score = 0.20;
-    decision = "BLOCK";
-    reasons = [
-      "Developer provided no answers to PR understanding questions.",
-      "Unable to verify developer comprehension of security or architectural changes."
-    ];
-  } else if (filledCount < totalQuestions) {
-    score = 0.65;
-    decision = pr.risk_analysis.risk_level === "HIGH" ? "BLOCK" : "PASS";
-    reasons = [
-      `Developer answered ${filledCount} of ${totalQuestions} questions.`,
-      "Partial understanding demonstrated; high risk PR requires complete answers."
-    ];
-  }
-
-  return {
-    pr_id: prNumber,
-    repository: repository,
-    risk_score: pr.risk_analysis.risk_score,
-    risk_level: pr.risk_analysis.risk_level,
-    understanding_score: score,
-    decision: decision,
-    reasons: reasons,
-    github_pr_url: pr.final_result.github_pr_url
-  };
+  // Parse and return the real EvaluationDecisionResponse from the backend
+  return await response.json();
 }
 
 export async function getFinalResult(repository, prNumber) {

@@ -35,12 +35,13 @@ def github_login() -> RedirectResponse:
             detail="GitHub OAuth client ID is not configured.",
         )
 
-    auth_url = (
-        f"{GITHUB_AUTHORIZE_URL}?"
-        f"client_id={client_id}&"
-        f"redirect_uri={redirect_uri}&"
-        f"scope={scope}"
-    )
+    import urllib.parse
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": scope,
+    }
+    auth_url = f"{GITHUB_AUTHORIZE_URL}?{urllib.parse.urlencode(params)}"
 
     return RedirectResponse(url=auth_url, status_code=status.HTTP_302_FOUND)
 

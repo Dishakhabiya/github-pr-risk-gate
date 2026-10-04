@@ -42,7 +42,7 @@ def test_oauth_login_redirect():
         assert "https://github.com/login/oauth/authorize" in location
         assert "client_id=test_client_id_123" in location
         assert "redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fauth%2Fgithub%2Fcallback" in location or "redirect_uri=http://localhost:8000/api/auth/github/callback" in location
-        assert "scope=read:user" in location
+        assert "scope=read%3Auser" in location or "scope=read:user" in location
 
 
 def test_oauth_callback_error_handling_missing_code():

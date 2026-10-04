@@ -49,6 +49,16 @@ class GitHubClient:
         if response.status_code == 404:
             raise GitHubNotFoundError(f"{resource_description} not found.")
 
+        if response.status_code == 406:
+            try:
+                error_data = response.json()
+                msg = error_data.get("message", "")
+            except Exception:
+                msg = response.text
+            if "too_large" in msg or "exceeded" in msg or "maximum number of lines" in msg:
+                raise ValueError(f"{resource_description} is too large for the GitHub API to process (e.g. >20,000 lines).")
+            raise GitHubAPIError(f"GitHub API request failed with status code 406: {msg}")
+
         if not response.ok:
             raise GitHubAPIError(
                 f"GitHub API request failed with status code {response.status_code}."
@@ -179,5 +189,12 @@ class GitHubClient:
         )
         return res.text
 
-
-
+    def post_issue_comment(self, owner: str, repo: str, issue_number: int, body: str) -> Dict[str, Any]:
+        """US-16: Post a comment on an issue or pull request."""
+        url = f"{self.api_url}/repos/{owner}/{repo}/issues/{issue_number}/comments"
+        payload = {"body": body}
+        response = self.session.post(url, json=payload)
+        res = self._handle_response(
+            response, resource_description=f"Comment on PR #{issue_number} in '{owner}/{repo}'"
+        )
+        return res.json()

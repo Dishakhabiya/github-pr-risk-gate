@@ -43,9 +43,28 @@ app.add_middleware(
     https_only=False,
 )
 
+import time
+import logging
+from fastapi import Request
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("monitoring")
+
+@app.middleware("http")
+async def monitor_requests(request: Request, call_next):
+    """US-21: Basic Monitoring Middleware."""
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time = time.time() - start_time
+    logger.info(
+        f"Path: {request.url.path} | Method: {request.method} | "
+        f"Status: {response.status_code} | Latency: {process_time:.4f}s"
+    )
+    return response
+
 app.include_router(router)
 app.include_router(rag_router, prefix="/api")
 app.include_router(auth_router)
 app.include_router(github_router)
-
-

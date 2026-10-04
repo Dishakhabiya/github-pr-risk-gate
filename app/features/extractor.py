@@ -109,7 +109,12 @@ def extract_features(pr_data: Dict[str, Any], diff_data: Dict[str, Any]) -> Dict
     total_lines_changed = lines_added + lines_deleted
 
     commits = pr_data.get("commits", [])
-    commits_count = len(commits)
+    # GitHub raw PR JSON returns 'commits' as an int count; fetch_pr_details returns a list.
+    # Handle both so the feature extractor is safe regardless of the data source.
+    if isinstance(commits, int):
+        commits_count = commits
+    else:
+        commits_count = len(commits)
 
     if lines_deleted > 0:
         additions_to_deletions_ratio = round(lines_added / lines_deleted, 4)
