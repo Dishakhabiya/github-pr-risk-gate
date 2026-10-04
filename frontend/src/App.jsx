@@ -134,6 +134,16 @@ export default function App() {
 
       setAnswers({});
       setFinalResult(null);
+
+      try {
+        const contextRes = await getRepositoryContext(repo, commitRes.pr_id || commitSha);
+        setContextData(contextRes);
+
+        const qRes = await getQuestions(commitRes);
+        setQuestionData(qRes);
+      } catch (_) {
+        // Context / question fetching is non-blocking — Commit risk still loads
+      }
     } catch (err) {
       setError(err.message || "Failed to analyze Commit.");
     } finally {
@@ -269,6 +279,8 @@ export default function App() {
             submitting={submitting}
             submitError={submitError}
             submitSuccess={submitSuccess}
+            authUser={authUser}
+            currentPR={prData}
           />
         )}
 

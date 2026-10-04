@@ -133,21 +133,23 @@ export async function getRepositoryContext(repository, prNumber) {
 
 export async function getQuestions(prData) {
   let response;
+  const changedFiles = Array.isArray(prData.files_changed)
+    ? prData.files_changed
+    : (prData.changed_files_list ? prData.changed_files_list.map((f) => f.filename) : []);
+
   try {
     // Generate questions for this PR using US-11 endpoint
-    response = await fetch(`${API_BASE_URL}/api/rag/pr/questions`, {
+    response = await fetch(`${API_BASE_URL}/api/rag/pr/questions?num_questions=3`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({
-        pr_info: {
-          repository: prData.repository,
-          title: prData.title || `PR ${prData.pr_id}`,
-          description: prData.body || prData.description || "",
-          changed_files: prData.files_changed || []
-        },
-        num_questions: 3
+        repository: prData.repository,
+        title: prData.title || `PR ${prData.pr_id}`,
+        description: prData.body || prData.description || "",
+        changed_files: changedFiles,
       }),
     });
   } catch (err) {
@@ -155,7 +157,14 @@ export async function getQuestions(prData) {
   }
 
   if (!response.ok) {
-    throw new Error("Failed to generate PR questions.");
+    let errorDetail = "Failed to generate PR questions.";
+    try {
+      const errData = await response.json();
+      if (errData && errData.detail) {
+        errorDetail = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
+      }
+    } catch (_) { }
+    throw new Error(errorDetail);
   }
 
   const data = await response.json();
@@ -209,7 +218,7 @@ export async function submitAnswers(repository, prNumber, answers, answersPayloa
 
   const filledCount = Object.values(answers || {}).filter((a) => a && a.trim().length > 10).length;
   const totalQuestions = Object.keys(answers).length || 3;
-  
+
   let score = pr.final_result.understanding_score;
   let decision = pr.final_result.decision;
   let reasons = [...pr.final_result.reasons];
@@ -373,7 +382,7 @@ export async function analyzeCommit(repository, commitSha) {
       if (errorData && errorData.detail) {
         errorDetail = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
       }
-    } catch (_) {}
+    } catch (_) { }
     if (response.status === 404) {
       errorDetail = `Commit ${commitSha} not found or no longer available in repository '${repository}'.`;
     }
@@ -437,7 +446,7 @@ export async function analyzeRepository(owner, repo, branch = null) {
       if (errorData && errorData.detail) {
         errorDetail = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
       }
-    } catch (_) {}
+    } catch (_) { }
     throw new Error(errorDetail);
   }
 

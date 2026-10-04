@@ -64,14 +64,19 @@ class QuestionGenerator:
             ))
             
         # 4. Tests and maintainability (Fallback or if more questions needed)
-        categories = ["tests", "maintainability", "correctness/logic"]
-        cat_idx = 0
+        fallback_templates = [
+            ("tests", "Are there sufficient unit tests and documentation covering these changes?"),
+            ("maintainability", "Does the pull request adhere to architectural guidelines and maintain code readability?"),
+            ("correctness/logic", "Does the proposed change preserve backward compatibility and logical correctness?"),
+        ]
+        fallback_idx = 0
         while len(questions) < num_questions:
+            cat, q_text = fallback_templates[fallback_idx % len(fallback_templates)]
             questions.append(PRQuestion(
                 question_id=f"q{len(questions) + 1}",
-                question=f"Are there sufficient unit tests and documentation covering these changes?",
-                category=categories[cat_idx % len(categories)]
+                question=q_text,
+                category=cat
             ))
-            cat_idx += 1
+            fallback_idx += 1
             
         return questions[:num_questions]

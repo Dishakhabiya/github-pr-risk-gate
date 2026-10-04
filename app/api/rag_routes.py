@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Optional, List, Dict
 from app.github.client import GitHubClient
 from app.github.exceptions import GitHubAPIError, GitHubAuthError, GitHubNotFoundError
@@ -14,8 +14,9 @@ class IngestRequest(BaseModel):
     repo: str
     branch: Optional[str] = None
 
-def get_github_client() -> GitHubClient:
-    return GitHubClient()
+def get_github_client(request: Request) -> GitHubClient:
+    access_token = request.session.get("access_token") if hasattr(request, "session") and request.session else None
+    return GitHubClient(token=access_token)
 
 @router.post("/rag/repository/ingest")
 def ingest_repository(request: IngestRequest, client: GitHubClient = Depends(get_github_client)):

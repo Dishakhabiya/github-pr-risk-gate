@@ -61,3 +61,13 @@ def test_answer_submission_missing_id():
     # Should fail validation because question_id is now required
     assert response.status_code == 422
     assert "question_id" in response.text
+
+
+def test_question_generation_session_token():
+    """Test that get_github_client extracts access_token from session when available."""
+    from app.api.rag_routes import get_github_client
+    mock_request = MagicMock()
+    mock_request.session = {"access_token": "gho_test_oauth_token"}
+
+    client_obj = get_github_client(mock_request)
+    assert client_obj.token == "gho_test_oauth_token"
