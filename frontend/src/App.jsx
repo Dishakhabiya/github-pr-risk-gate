@@ -7,7 +7,6 @@ import FinalResult from "./pages/FinalResult";
 
 import {
   analyzePR,
-  getRiskPrediction,
   getRepositoryContext,
   getQuestions,
   submitAnswers,
@@ -18,6 +17,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const [prData, setPrData] = useState(null);
   const [riskData, setRiskData] = useState(null);
@@ -29,6 +30,8 @@ export default function App() {
   const handleAnalyzePR = async (repo, prNumber) => {
     setLoading(true);
     setError(null);
+    setSubmitError(null);
+    setSubmitSuccess(false);
     setPrData(null);
     setRiskData(null);
     setContextData(null);
@@ -55,13 +58,12 @@ export default function App() {
         const contextRes = await getRepositoryContext(repo, prNumber);
         setContextData(contextRes);
 
-        const qRes = await getQuestions(repo, prNumber);
+        const qRes = await getQuestions(prRes);
         setQuestionData(qRes);
       } catch (_) {
-        // Fallback for mock context/questions if needed
+        // Context / question fetching is non-blocking — PR risk still loads
       }
 
-      // Reset answers and final result for new PR
       setAnswers({});
       setFinalResult(null);
     } catch (err) {
@@ -78,25 +80,43 @@ export default function App() {
     }));
   };
 
-  const handlePrefillSampleAnswers = () => {
-    if (questionData?.sample_answers) {
-      setAnswers({ ...questionData.sample_answers });
-    }
+  /**
+   * Build a fully-structured answer payload for each question.
+   * This ensures answers can never be accidentally associated with the wrong question
+   * because every answer entry carries its own question_id, question text, and category.
+   */
+  const buildAnswerPayload = () => {
+    const questions = questionData?.questions || [];
+    return questions.map((q, idx) => {
+      const id = q.id !== undefined ? q.id : idx;
+      return {
+        question_id: String(id),
+        question: q.question,
+        category: q.category || "general",
+        answer: answers[id] || "",
+      };
+    });
   };
 
   const handleSubmitAnswers = async () => {
     if (!prData) return;
     setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+
     try {
       const result = await submitAnswers(
         prData.repository,
         prData.pr_id,
-        answers
+        answers,
+        buildAnswerPayload()
       );
+      setSubmitSuccess(true);
       setFinalResult(result);
-      setActiveTab("result");
+      // Brief delay so success message is visible before navigating
+      setTimeout(() => setActiveTab("result"), 800);
     } catch (err) {
-      setError(err.message || "Failed to submit answers for evaluation.");
+      setSubmitError(err.message || "Failed to submit answers for evaluation.");
     } finally {
       setSubmitting(false);
     }
@@ -109,6 +129,8 @@ export default function App() {
     setQuestionData(null);
     setAnswers({});
     setFinalResult(null);
+    setSubmitError(null);
+    setSubmitSuccess(false);
     setActiveTab("analysis");
   };
 
@@ -145,9 +167,10 @@ export default function App() {
             questionData={questionData}
             answers={answers}
             onAnswerChange={handleAnswerChange}
-            onPrefillSampleAnswers={handlePrefillSampleAnswers}
             onSubmitAnswers={handleSubmitAnswers}
             submitting={submitting}
+            submitError={submitError}
+            submitSuccess={submitSuccess}
           />
         )}
 

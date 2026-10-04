@@ -127,28 +127,84 @@ export async function getRepositoryContext(repository, prNumber) {
   };
 }
 
-export async function getQuestions(repository, prNumber) {
-  await delay(300);
-  const key = getKey(repository, prNumber);
-  const pr = MOCK_PRS[key];
+export async function getQuestions(prData) {
+  let response;
+  try {
+    // Generate questions for this PR using US-11 endpoint
+    response = await fetch(`${API_BASE_URL}/api/rag/pr/questions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        pr_info: {
+          repository: prData.repository,
+          title: prData.title || `PR ${prData.pr_id}`,
+          description: prData.body || prData.description || "",
+          changed_files: prData.files_changed || []
+        },
+        num_questions: 3
+      }),
+    });
+  } catch (err) {
+    throw new Error(`Unable to fetch questions from ${API_BASE_URL}.`);
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to generate PR questions.");
+  }
+
+  const data = await response.json();
   return {
-    questions: pr.questions,
-    sample_answers: pr.sample_answers
+    questions: data.questions,
+    sample_answers: {}
   };
 }
 
 /**
  * Step 4: Submit Developer Answers & Obtain Person 3 Final LLM Evaluation
+ *
+ * answersPayload - pre-built structured array from App.buildAnswerPayload(),
+ * ensuring answer→question association is carried by the payload itself.
  */
-export async function submitAnswers(repository, prNumber, answers) {
-  await delay(700);
+export async function submitAnswers(repository, prNumber, answers, answersPayload) {
+  // Use the caller-supplied structured payload when available;
+  // fall back to building from raw answers map for backwards compatibility.
+  const formattedAnswers = answersPayload || Object.keys(answers).map((id) => ({
+    question_id: String(id),
+    question: "Submitted question",
+    category: "general",
+    answer: answers[id] || "",
+  }));
 
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/rag/questions/answers`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        repository,
+        pr_number: Number(prNumber),
+        answers: formattedAnswers
+      }),
+    });
+  } catch (err) {
+    throw new Error(`Unable to submit answers to ${API_BASE_URL}.`);
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to submit PR answers.");
+  }
+
+  // To preserve frontend behavior (which expects final result from submitAnswers), 
+  // we combine the real submission with a mock final result.
   const key = getKey(repository, prNumber);
-  const pr = MOCK_PRS[key];
+  const pr = MOCK_PRS[key] || MOCK_PRS[DEFAULT_PR_KEY];
 
-  // Simple heuristic calculation based on answers completeness for mock demo
   const filledCount = Object.values(answers || {}).filter((a) => a && a.trim().length > 10).length;
-  const totalQuestions = pr.questions.length;
+  const totalQuestions = Object.keys(answers).length || 3;
   
   let score = pr.final_result.understanding_score;
   let decision = pr.final_result.decision;
@@ -171,8 +227,8 @@ export async function submitAnswers(repository, prNumber, answers) {
   }
 
   return {
-    pr_id: pr.pr_id,
-    repository: pr.repository,
+    pr_id: prNumber,
+    repository: repository,
     risk_score: pr.risk_analysis.risk_score,
     risk_level: pr.risk_analysis.risk_level,
     understanding_score: score,

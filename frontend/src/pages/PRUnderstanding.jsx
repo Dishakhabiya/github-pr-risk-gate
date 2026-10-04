@@ -8,9 +8,10 @@ export default function PRUnderstanding({
   questionData,
   answers,
   onAnswerChange,
-  onPrefillSampleAnswers,
   onSubmitAnswers,
   submitting,
+  submitError,
+  submitSuccess,
 }) {
   if (!contextData && !questionData) {
     return (
@@ -27,7 +28,7 @@ export default function PRUnderstanding({
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">RAG Context & PR Questions (Person 2)</h1>
+        <h1 className="page-title">RAG Context &amp; PR Questions (Person 2)</h1>
         <p className="page-description">
           Step 3: Review retrieved repository code context and provide technical explanations to PR comprehension questions.
         </p>
@@ -39,9 +40,10 @@ export default function PRUnderstanding({
         questions={questionData?.questions || []}
         answers={answers}
         onAnswerChange={onAnswerChange}
-        onPrefillSampleAnswers={onPrefillSampleAnswers}
         onSubmitAnswers={onSubmitAnswers}
         submitting={submitting}
+        submitError={submitError}
+        submitSuccess={submitSuccess}
       />
     </div>
   );

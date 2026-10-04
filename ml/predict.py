@@ -12,10 +12,11 @@ class PRRiskPredictor:
 
     def __init__(
         self,
-        model_path: str = "artifacts/risk_model.joblib",
+        model_path: Optional[str] = None,
         default_threshold: float = 0.5,
     ):
-        self.model_path = model_path
+        # Default to MLflow registry version, fallback will occur in load_model
+        self.model_path = model_path or "models:/pr-risk-model/latest"
         self.default_threshold = default_threshold
         self._pipeline: Optional[RiskModelPipeline] = None
 
@@ -28,6 +29,22 @@ class PRRiskPredictor:
         """
         if self._pipeline is not None:
             return self._pipeline
+
+        # Use MLflow registry if path starts with models:/
+        if str(self.model_path).startswith("models:/"):
+            try:
+                import mlflow
+                from ml.tracking import _get_tracking_uri
+                mlflow.set_tracking_uri(_get_tracking_uri())
+                self._pipeline = mlflow.sklearn.load_model(self.model_path)
+                return self._pipeline
+            except ImportError:
+                print("[MLflow] Warning: MLflow not installed. Falling back to local joblib artifact.")
+            except Exception as e:
+                print(f"[MLflow] Warning: Failed to load MLflow model '{self.model_path}' ({e}). Falling back to local joblib artifact.")
+                
+            # If MLflow load fails, fallback to the default artifact path
+            self.model_path = "artifacts/risk_model.joblib"
 
         if not os.path.exists(self.model_path):
             raise FileNotFoundError(
@@ -123,7 +140,7 @@ class PRRiskPredictor:
 def predict_pr_risk(
     pr_data: Dict[str, Any],
     diff_data: Dict[str, Any],
-    model_path: str = "artifacts/risk_model.joblib",
+    model_path: Optional[str] = None,
     threshold: float = 0.5,
 ) -> Dict[str, Any]:
     """Convenience helper function to predict PR risk score and level."""

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Optional
+from typing import Optional, List, Dict
 from app.github.client import GitHubClient
 from app.github.exceptions import GitHubAPIError, GitHubAuthError, GitHubNotFoundError
 from app.rag.ingestion import RepositoryIngestor
@@ -143,3 +143,28 @@ def generate_pr_questions(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+class Answer(BaseModel):
+    question_id: str
+    question: str
+    category: str
+    answer: str
+
+class SubmitAnswersRequest(BaseModel):
+    repository: str
+    pr_number: int
+    answers: List[Answer]
+
+@router.post("/rag/questions/answers")
+def submit_pr_answers(request: SubmitAnswersRequest):
+    """
+    Submit developer answers to the generated PR questions.
+    """
+    # Simply echo back the answers with a success message for now.
+    # In US-13, this will be consumed by the LLM evaluation.
+    return {
+        "status": "success",
+        "message": "Answers submitted successfully.",
+        "repository": request.repository,
+        "pr_number": request.pr_number,
+        "submitted_answers_count": len(request.answers)
+    }

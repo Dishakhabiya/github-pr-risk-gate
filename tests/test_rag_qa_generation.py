@@ -16,6 +16,12 @@ def test_question_generation_from_pr_info():
     # Check if edge cases question uses changed file
     assert any("app/auth.py" in q.question for q in questions)
     assert any(q.category == "edge cases" for q in questions)
+    
+    # Verify question_id
+    question_ids = [q.question_id for q in questions]
+    assert all(qid for qid in question_ids)  # Non-empty
+    assert len(set(question_ids)) == len(question_ids)  # Unique
+    assert question_ids == ["q1", "q2", "q3"]
 
 def test_question_generation_with_context():
     generator = QuestionGenerator()
@@ -36,6 +42,7 @@ def test_question_generation_with_context():
     assert "connect_to_db" in questions[0].question
     assert questions[0].supporting_context.startswith("def connect_to_db")
     assert questions[0].category == "impact on existing code"
+    assert questions[0].question_id == "q1"
 
 def test_question_generation_configurable_count():
     generator = QuestionGenerator()
@@ -44,6 +51,10 @@ def test_question_generation_configurable_count():
     
     questions = generator.generate_questions(pr_info, context_chunks, num_questions=5)
     assert len(questions) == 5
+    
+    question_ids = [q.question_id for q in questions]
+    assert len(set(question_ids)) == 5
+    assert "q5" in question_ids
 
 def test_question_generation_missing_info_and_context():
     generator = QuestionGenerator()
@@ -55,3 +66,5 @@ def test_question_generation_missing_info_and_context():
     # Should fallback to generic questions if nothing is provided
     assert any("unit tests" in q.question.lower() for q in questions)
     assert all(q.category in ["tests", "maintainability", "correctness/logic"] for q in questions)
+    assert questions[0].question_id == "q1"
+    assert questions[1].question_id == "q2"

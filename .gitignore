@@ -9,3 +9,6 @@ data/
 *.parquet
 artifacts/
 *.joblib
+# MLflow local tracking store (US-18)
+mlruns/
+mlflow.db
