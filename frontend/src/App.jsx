@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
+import HeroSection from "./components/HeroSection";
+import DrawerGrid from "./components/DrawerGrid";
 import PRAnalysis from "./pages/PRAnalysis";
 import RiskAnalysis from "./pages/RiskAnalysis";
 import PRUnderstanding from "./pages/PRUnderstanding";
@@ -236,6 +238,12 @@ export default function App() {
     setActiveTab("analysis");
   };
 
+  const mainRef = React.useRef(null);
+
+  const scrollToMain = () => {
+    mainRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="app-wrapper">
       <Navbar
@@ -246,7 +254,15 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      <main className="main-content">
+      {/* Hero + Drawer — only shown on the landing/analysis step */}
+      {activeTab === "analysis" && !prData && (
+        <>
+          <HeroSection onStart={scrollToMain} />
+          <DrawerGrid onSelectStep={setActiveTab} />
+        </>
+      )}
+
+      <main className="main-content" ref={mainRef}>
         {activeTab === "analysis" && (
           <PRAnalysis
             prData={prData}

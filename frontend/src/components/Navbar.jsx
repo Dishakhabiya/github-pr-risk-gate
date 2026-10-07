@@ -1,16 +1,19 @@
 import React from "react";
-import { GitPullRequest, ShieldAlert, BookOpen, CheckCircle, Cpu, LogOut } from "lucide-react";
+import { GitPullRequest, ShieldAlert, BookOpen, CheckCircle, LogOut } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
+const StarburstIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path
+      d="M16 2 L17.2 13.8 L27.3 7.3 L19.8 16 L27.3 24.7 L17.2 18.2 L16 30 L14.8 18.2 L4.7 24.7 L12.2 16 L4.7 7.3 L14.8 13.8 Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 const GithubIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    aria-hidden="true"
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -20,12 +23,11 @@ const GithubIcon = ({ size = 16 }) => (
 );
 
 export default function Navbar({ activeTab, setActiveTab, currentPR, authUser, onLogout }) {
-
   const tabs = [
-    { id: "analysis", label: "1. PR Analysis", icon: GitPullRequest },
-    { id: "risk", label: "2. Risk Analysis", icon: ShieldAlert },
-    { id: "understanding", label: "3. PR Understanding", icon: BookOpen },
-    { id: "result", label: "4. Final Result", icon: CheckCircle },
+    { id: "analysis",     label: "PR ANALYSIS",     icon: GitPullRequest, step: "01" },
+    { id: "risk",         label: "RISK SCORE",       icon: ShieldAlert,    step: "02" },
+    { id: "understanding",label: "UNDERSTANDING",    icon: BookOpen,       step: "03" },
+    { id: "result",       label: "DECISION",         icon: CheckCircle,    step: "04" },
   ];
 
   const loginUrl = `${API_BASE_URL}/api/auth/github/login`;
@@ -33,16 +35,18 @@ export default function Navbar({ activeTab, setActiveTab, currentPR, authUser, o
   return (
     <header className="navbar-container">
       <div className="navbar-inner">
+        {/* Brand */}
         <div className="brand-section">
           <div className="brand-icon">
-            <Cpu size={24} />
+            <StarburstIcon />
           </div>
           <div>
-            <h1 className="brand-title">GitHub PR Risk Gate</h1>
-            <p className="brand-subtitle">AI-Powered Risk Assessment & Merge Gating</p>
+            <h1 className="brand-title">PR Risk Gate</h1>
+            <p className="brand-subtitle">AI-Powered Merge Gating</p>
           </div>
         </div>
 
+        {/* Right side auth */}
         <div className="navbar-right">
           {currentPR && (
             <div className="active-pr-badge">
@@ -68,30 +72,27 @@ export default function Navbar({ activeTab, setActiveTab, currentPR, authUser, o
               </button>
             </div>
           ) : (
-            <a
-              href={loginUrl}
-              className="btn-github-login"
-            >
+            <a href={loginUrl} className="btn-github-login">
               <GithubIcon size={16} />
               <span>Login with GitHub</span>
             </a>
           )}
-
         </div>
       </div>
 
-      <nav className="tab-navigation">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
+      {/* Folder-tab navigation */}
+      <nav className="tab-navigation" aria-label="Pipeline steps">
+        {tabs.map((tab, idx) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`nav-tab ${isActive ? "nav-tab-active" : ""}`}
+              className={`folder-tab ${isActive ? "folder-tab--active" : ""}`}
+              style={{ "--tab-index": idx }}
             >
-              <Icon size={16} />
-              <span>{tab.label}</span>
+              <span className="folder-tab-step">{tab.step}</span>
+              <span className="folder-tab-label">{tab.label}</span>
             </button>
           );
         })}
@@ -99,4 +100,3 @@ export default function Navbar({ activeTab, setActiveTab, currentPR, authUser, o
     </header>
   );
 }
-
