@@ -180,12 +180,7 @@ def submit_pr_answers(
         raw_diff = pr_data.get("diff", "")
         diff_data = preprocess_diff(raw_diff)
         
-        # 2. Get ML Risk Prediction
-        risk_prediction = predict_pr_risk(pr_data, diff_data)
-        risk_level = risk_prediction.get("risk_level", "LOW")
-        risk_score = risk_prediction.get("risk_score", 0.0)
-        
-        # 3. Retrieve context chunks for evaluation
+        # 2. Retrieve context chunks (RAG) BEFORE risk prediction so LLM can use them
         pr_info = PRInfo(
             repository=request.repository,
             title=pr_data.get("title", ""),
@@ -195,6 +190,11 @@ def submit_pr_answers(
         )
         retriever = PRRetriever(vector_db)
         context_chunks = retriever.retrieve_context(pr_info, top_k=5)
+        
+        # 3. Get ML Risk Prediction (Now enhanced with RAG context)
+        risk_prediction = predict_pr_risk(pr_data, diff_data, context_chunks=context_chunks)
+        risk_level = risk_prediction.get("risk_level", "LOW")
+        risk_score = risk_prediction.get("risk_score", 0.0)
         
         # 4. Evaluate Answers (US-13 & US-14)
         answers_payload = [ans.dict() for ans in request.answers]

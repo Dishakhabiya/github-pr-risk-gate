@@ -1,10 +1,60 @@
 import os
-from typing import Any, Dict, Optional
+import json
+import logging
+import openai
+from typing import Any, Dict, List, Optional
 
 from app.dataset.labeler import check_has_linked_issue
 from app.features.extractor import extract_features
 from ml.model import RiskModelPipeline
 from ml.preprocessing import prepare_feature_matrix, validate_no_data_leakage
+
+logger = logging.getLogger(__name__)
+
+def get_llm_risk_score(pr_data: Dict[str, Any], diff_data: Dict[str, Any], context_chunks: List[Dict[str, Any]] = None) -> Optional[float]:
+    """Uses an LLM to predict the risk score based on the semantic meaning of the code diff and RAG context."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+        
+    client = openai.OpenAI(api_key=api_key)
+    
+    context_text = ""
+    if context_chunks:
+        context_text = "Repository Context (Guidelines and similar PRs):\n" + "\n".join([c.get("content", "") for c in context_chunks])
+        context_text = context_text[:3000] # truncate context
+        
+    diff_text = json.dumps(diff_data)[:4000] # Truncate to avoid context limit issues
+    prompt = f"""
+    You are an expert security and code reviewer. Analyze the following Pull Request diff and determine the risk of bugs, regressions, or security vulnerabilities.
+    Consider the provided repository context if available. Pay special attention to large deletions (which might just be safe dead-code removal).
+    Return a risk score between 0.0 (completely safe) and 1.0 (extremely dangerous).
+    
+    PR Title: {pr_data.get('title')}
+    
+    {context_text}
+    
+    PR Diff: 
+    {diff_text}
+    
+    Respond strictly with a JSON object matching this schema: {{"risk_score": <float>}}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a senior technical PR reviewer."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.0
+        )
+        parsed = json.loads(response.choices[0].message.content)
+        return float(parsed.get("risk_score", 0.5))
+    except Exception as e:
+        logger.error(f"LLM Risk Prediction failed: {e}")
+        return None
 
 
 DEFAULT_MODEL_PATH = "models:/pr-risk-model/latest"
@@ -143,15 +193,36 @@ class PRRiskPredictor:
         features["has_linked_issue"] = check_has_linked_issue(title, body)
 
         pr_number = pr_data.get("pr_id") or pr_data.get("number", 0)
-        return self.predict_from_features(features, threshold=threshold, pr_id=pr_number)
-
+        ml_result = self.predict_from_features(features, threshold=threshold, pr_id=pr_number)
+        
+        return ml_result
 
 def predict_pr_risk(
     pr_data: Dict[str, Any],
     diff_data: Dict[str, Any],
     model_path: Optional[str] = None,
     threshold: float = 0.5,
+    context_chunks: Optional[list] = None
 ) -> Dict[str, Any]:
     """Convenience helper function to predict PR risk score and level."""
     predictor = PRRiskPredictor(model_path=model_path, default_threshold=threshold)
-    return predictor.predict_pr_risk(pr_data, diff_data, threshold=threshold)
+    ml_result = predictor.predict_pr_risk(pr_data, diff_data, threshold=threshold)
+    
+    # IMPROVEMENT: Get semantic risk score from LLM using RAG Context
+    llm_risk_score = get_llm_risk_score(pr_data, diff_data, context_chunks)
+    
+    if llm_risk_score is not None:
+        # If LLM is extremely confident it's safe (e.g. dead code deletion), OVERRIDE the ML model entirely
+        if llm_risk_score <= 0.2 and ml_result["risk_score"] > 0.5:
+            final_score = llm_risk_score
+            model_name = "LLM Override (Safe Deletion detected)"
+        else:
+            # Otherwise, blend 50% ML Model (Statistics) and 50% LLM (Semantic Logic)
+            final_score = (ml_result["risk_score"] + llm_risk_score) / 2.0
+            model_name = ml_result["model_name"] + " + LLM Semantic Analysis"
+            
+        ml_result["risk_score"] = round(final_score, 4)
+        ml_result["risk_level"] = "HIGH" if final_score >= threshold else "LOW"
+        ml_result["model_name"] = model_name
+        
+    return ml_result
