@@ -7,8 +7,11 @@ __pycache__/
 data/
 *.csv
 *.parquet
-artifacts/
-*.joblib
+# Allow artifacts/risk_model.joblib and evaluation.json to be committed
+artifacts/*
+!artifacts/risk_model.joblib
+!artifacts/evaluation.json
+test.joblib
 # MLflow local tracking store (US-18)
 mlruns/
 mlflow.db
