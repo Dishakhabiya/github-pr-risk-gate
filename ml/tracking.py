@@ -26,7 +26,7 @@ import numpy as np
 
 MLFLOW_EXPERIMENT_NAME = "pr-risk-prediction"
 MLFLOW_TRACKING_URI_ENV = "MLFLOW_TRACKING_URI"
-DEFAULT_MLFLOW_TRACKING_DIR = "./mlruns"
+DEFAULT_MLFLOW_TRACKING_DIR = "sqlite:///mlflow.db"
 
 
 def _get_tracking_uri() -> str:
@@ -126,6 +126,14 @@ def log_dataset_params(
     mlflow.set_tag("feature_names_json", json.dumps(feature_names))
 
 
+def log_rag_params(**kwargs) -> None:
+    """Log RAG specific parameters."""
+    mlflow = _try_import_mlflow()
+    if mlflow is None:
+        return
+    mlflow.log_params(kwargs)
+
+
 def log_model_params(
     model_type: str,
     model_name: str,
@@ -197,6 +205,14 @@ def log_evaluation_metrics(metrics: Dict[str, Any]) -> None:
             for metric_name, value in class_metrics.items():
                 if isinstance(value, (int, float)):
                     mlflow.log_metric(f"test_{label_str}_{metric_name}", float(value))
+
+
+def log_llm_metrics(**kwargs) -> None:
+    """Log LLM specific metrics."""
+    mlflow = _try_import_mlflow()
+    if mlflow is None:
+        return
+    mlflow.log_metrics(kwargs)
 
 
 # ─── Artifact logging helpers ─────────────────────────────────────────────────
